@@ -5,8 +5,7 @@
 
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -22,7 +21,6 @@ enum ApplicationStatus {
   REJECTED
   WITHDRAWN
 }
-
 
 model User {
   id           String        @id @default(uuid())
@@ -40,17 +38,17 @@ model Company {
 }
 
 model Application {
-  id           String          @id @default(uuid())
-  role         String?
-  status       ApplicationStatus @default(APPLIED)
-  pitch        String?
-  desireLevel  Int?            // how much I want this role
-  userId       String
-  companyId    String
-  user         User            @relation(fields: [userId], references: [id])
-  company      Company         @relation(fields: [companyId], references: [id])
-  stages       InterviewStage[]
-  createdAt    DateTime        @default(now())
+  id          String            @id @default(uuid())
+  role        String?
+  status      ApplicationStatus @default(APPLIED)
+  pitch       String?
+  desireLevel Int? // how much I want this role
+  userId      String
+  companyId   String
+  user        User              @relation(fields: [userId], references: [id])
+  company     Company           @relation(fields: [companyId], references: [id])
+  stages      InterviewStage[]
+  createdAt   DateTime          @default(now())
 }
 
 model InterviewStage {
@@ -64,4 +62,3 @@ model InterviewStage {
   scheduledAt    DateTime?
   createdAt      DateTime    @default(now())
 }
-
