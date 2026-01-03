@@ -87,7 +87,7 @@ model InterviewStage {
   betterAnswerToday String?
   outcome           String?
   applicationId     String
-  application       Application             @relation(fields: [applicationId], references: [id])
+  application       Application             @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   scheduledAt       DateTime?
   createdAt         DateTime                @default(now())
   updatedAt         DateTime                @updatedAt
