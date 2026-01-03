@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 generator client {
   provider = "prisma-client-js"
 }
@@ -22,43 +16,81 @@ enum ApplicationStatus {
   WITHDRAWN
 }
 
+enum ApplicationDesireLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum InterviewStageType {
+  HR
+  TECHNICAL
+  ARCHITECTURE
+  ASSIGNMENT
+  MANAGER
+  CTO
+  OTHER
+}
+
+enum InterviewStageLocation {
+  IN_PERSON
+  ZOOM
+  GOOGLE_MEET
+  PHONE_CALL
+  OTHER
+}
+
 model User {
-  id           String        @id @default(uuid())
-  email        String        @unique
-  applications Application[]
-  createdAt    DateTime      @default(now())
+  id        String    @id @default(uuid())
+  email     String    @unique
+  createdAt DateTime  @default(now())
+  companies Company[]
 }
 
 model Company {
   id           String        @id @default(uuid())
+  userId       String
   name         String
   website      String?
+  user         User          @relation(fields: [userId], references: [id])
   applications Application[]
   createdAt    DateTime      @default(now())
+
+  @@unique([userId, name])
 }
 
 model Application {
-  id          String            @id @default(uuid())
-  role        String?
-  status      ApplicationStatus @default(APPLIED)
+  id          String                  @id @default(uuid())
+  role        String
+  sourceUrl   String?
+  status      ApplicationStatus       @default(DRAFT)
   pitch       String?
-  desireLevel Int? // how much I want this role
-  userId      String
+  desireLevel ApplicationDesireLevel? // how much I want this role
   companyId   String
-  user        User              @relation(fields: [userId], references: [id])
-  company     Company           @relation(fields: [companyId], references: [id])
+  company     Company                 @relation(fields: [companyId], references: [id])
   stages      InterviewStage[]
-  createdAt   DateTime          @default(now())
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
 }
 
 model InterviewStage {
-  id             String      @id @default(uuid())
-  title          String
-  interviewer    String?
-  interviewerUrl String?
-  notes          String?
-  applicationId  String
-  application    Application @relation(fields: [applicationId], references: [id])
-  scheduledAt    DateTime?
-  createdAt      DateTime    @default(now())
+  id                String                  @id @default(uuid())
+  order             Int
+  type              InterviewStageType
+  location          InterviewStageLocation?
+  isCompleted       Boolean                 @default(false)
+  interviewerName   String?
+  preparationNotes  String?
+  reflectionNotes   String?
+  questionsAsked    String?
+  whyItDidntGoWell  String?
+  betterAnswerToday String?
+  outcome           String?
+  applicationId     String
+  application       Application             @relation(fields: [applicationId], references: [id])
+  scheduledAt       DateTime?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  @@unique([applicationId, order])
 }
