@@ -1,42 +1,39 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createCompanySchema } from "@/lib/validation/company.schema";
+import { errorResponse, zodErrorResponse } from "@/lib/validation/error-response";
 
 export const GET = async (req: Request) => {
-  const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId");
-
   const companies = await prisma.company.findMany({
-    where: userId ? { user: { id: userId } } : undefined,
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: 'desc' },
   });
 
   return NextResponse.json(companies);
 };
 
 export const POST = async (req: Request) => {
-  const { name, website, userId } = await req.json();
-  
-  if (!name) {
-    return NextResponse.json(
-      { error: "Company name is required" },
-      { status: 400 }
-    );
-  }
+  try {
+    const body = await req.json();
+    const { userId, ...companyData } = createCompanySchema.parse(body);
 
-  if (!userId) {
-    return NextResponse.json(
-      { error: "User ID is required" },
-      { status: 400 }
-    );
-  }
+    const company = await prisma.company.create({
+      data: {
+        ...companyData,
+        user: { connect: { id: userId } },
+      },
+    });
 
-  const company = await prisma.company.create({
-    data: { 
-      name, 
-      website, 
-      user: { connect: { id: userId } }
-    },
-  });
 
-  return NextResponse.json(company, { status: 201 });
+    return NextResponse.json(company, { status: 201 });
+  } catch (err) {
+    if (err instanceof Error && err.name === 'ZodError') {
+      return zodErrorResponse(err as any);
+    }
+
+  return errorResponse(
+    'INTERNAL_ERROR',
+    'Failed to create company',
+    500
+  );
+}
 };

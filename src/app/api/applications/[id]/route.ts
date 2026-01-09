@@ -1,144 +1,59 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { ApplicationStatus, ApplicationDesireLevel } from '@prisma/client';
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { updateApplicationSchema } from "@/lib/validation/application.schema";
+import {
+  errorResponse,
+  zodErrorResponse,
+} from "@/lib/validation/error-response";
 
-type RouteParams = { params: { id: string } };
+type RouteParams = { params: Promise<{ id: string }> };
 
 export const GET = async (req: Request, { params }: RouteParams) => {
   try {
-    const { id } = params;
-
-    const application = await prisma.application.findUnique({
-      where: { id },
-      include: {
-        company: {
-          select: {
-            id: true,
-            name: true,
-            website: true,
-          },
-        },
-        stages: {
-          orderBy: { order: 'asc' },
-        },
-      },
-    });
+    const { id } = await params;
+    const application = await prisma.application.findUnique({ where: { id } });
 
     if (!application) {
-      return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'Application not found' } },
-        { status: 404 }
-      );
+      return errorResponse("NOT_FOUND", "Application not found", 404);
     }
-
     return NextResponse.json(application);
-  } catch {
-    return NextResponse.json(
-      { error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch application' } },
-      { status: 500 }
-    );
+  } catch (error) {
+    return errorResponse("NOT_FOUND", "Application not found", 404);
   }
 };
 
-
-
 export const PATCH = async (req: Request, { params }: RouteParams) => {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await req.json();
+    const data = updateApplicationSchema.parse(body);
 
-    const {
-      role,
-      status,
-      pitch,
-      desireLevel,
-    } = body;
-
-    // Validation (minimal)
-    if (role !== undefined && (typeof role !== 'string' || !role.trim())) {
-      return NextResponse.json(
-        { error: { code: 'INVALID_ROLE', message: 'Invalid role' } },
-        { status: 400 }
-      );
-    }
-
-    if (
-      status !== undefined &&
-      !Object.values(ApplicationStatus).includes(status)
-    ) {
-      return NextResponse.json(
-        { error: { code: 'INVALID_STATUS', message: 'Invalid status' } },
-        { status: 400 }
-      );
-    }
-
-    if (
-      desireLevel !== undefined &&
-      !Object.values(ApplicationDesireLevel).includes(desireLevel)
-    ) {
-      return NextResponse.json(
-        { error: { code: 'INVALID_DESIRE_LEVEL', message: 'Invalid desire level' } },
-        { status: 400 }
-      );
-    }
-
-    const exists = await prisma.application.findUnique({
-      where: { id },
-      select: { id: true },
-    });
-
-    if (!exists) {
-      return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'Application not found' } },
-        { status: 404 }
-      );
-    }
-
-    // Update (allowlist)
     const updated = await prisma.application.update({
       where: { id },
       data: {
-        ...(role !== undefined && { role: role.trim() }),
-        ...(status !== undefined && { status }),
-        ...(pitch !== undefined && { pitch }),
-        ...(desireLevel !== undefined && { desireLevel }),
+        ...(data.role !== undefined && { role: data.role.trim() }),
+        ...(data.status !== undefined && { status: data.status }),
+        ...(data.sourceUrl !== undefined && { sourceUrl: data.sourceUrl }),
+        ...(data.pitch !== undefined && { pitch: data.pitch }),
+        ...(data.desireLevel !== undefined && {
+          desireLevel: data.desireLevel,
+        }),
       },
     });
 
     return NextResponse.json(updated);
-  } catch {
-    return NextResponse.json(
-      { error: { code: 'INTERNAL_ERROR', message: 'Failed to update application' } },
-      { status: 500 }
-    );
+  } catch (err) {
+    if ((err as any)?.name === "ZodError") return zodErrorResponse(err as any);
+    return errorResponse("NOT_FOUND", "Application not found", 404);
   }
 };
 
 export const DELETE = async (req: Request, { params }: RouteParams) => {
   try {
-    const { id } = params;
-
-    const exists = await prisma.application.findUnique({
-      where: { id },
-      select: { id: true },
-    });
-
-    if (!exists) {
-      return NextResponse.json(
-        { error: { code: 'NOT_FOUND', message: 'Application not found' } },
-        { status: 404 }
-      );
-    }
-
-    await prisma.application.delete({
-      where: { id },
-    });
-
+    const { id } = await params;
+    await prisma.application.delete({ where: { id } });
     return new NextResponse(null, { status: 204 });
-  } catch {
-    return NextResponse.json(
-      { error: { code: 'INTERNAL_ERROR', message: 'Failed to delete application' } },
-      { status: 500 }
-    );
+  } catch (error) {
+    return errorResponse("NOT_FOUND", "Application stage not found", 404);
   }
 };

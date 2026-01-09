@@ -1,86 +1,45 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { InterviewStageType, InterviewStageLocation } from '@prisma/client';
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { createInterviewStageSchema } from "@/lib/validation/interview-stage.schema";
+import {
+  errorResponse,
+  zodErrorResponse,
+} from "@/lib/validation/error-response";
 
 export const POST = async (req: Request) => {
   try {
     const body = await req.json();
-
-    const {
-      applicationId,
-      type,
-      order,
-      location,
-      scheduledAt,
-      interviewerName,
-      preparationNotes,
-      reflectionNotes,
-      questionsAsked,
-      whyItDidntGoWell,
-      betterAnswerToday,
-      outcome,
-      isCompleted,
-    } = body;
-
-    if (!applicationId || typeof order !== 'number') {
-      return NextResponse.json(
-        { error: { code: 'INVALID_INPUT', message: 'applicationId and order are required' } },
-        { status: 400 }
-      );
-    }
-
-    if (!Object.values(InterviewStageType).includes(type)) {
-      return NextResponse.json(
-        { error: { code: 'INVALID_TYPE', message: 'Invalid stage type' } },
-        { status: 400 }
-      );
-    }
-
-    if (
-      location !== undefined &&
-      !Object.values(InterviewStageLocation).includes(location)
-    ) {
-      return NextResponse.json(
-        { error: { code: 'INVALID_LOCATION', message: 'Invalid location' } },
-        { status: 400 }
-      );
-    }
+    const data = createInterviewStageSchema.parse(body);
 
     const app = await prisma.application.findUnique({
-      where: { id: applicationId },
+      where: { id: data.applicationId },
       select: { id: true },
     });
 
     if (!app) {
-      return NextResponse.json(
-        { error: { code: 'APPLICATION_NOT_FOUND', message: 'Application not found' } },
-        { status: 404 }
-      );
+      return errorResponse("NOT_FOUND", "Application not found", 404);
     }
 
     const stage = await prisma.interviewStage.create({
       data: {
-        applicationId,
-        type,
-        order,
-        location,
-        scheduledAt,
-        interviewerName,
-        preparationNotes,
-        reflectionNotes,
-        questionsAsked,
-        whyItDidntGoWell,
-        betterAnswerToday,
-        outcome,
-        isCompleted: isCompleted ?? false,
+        applicationId: data.applicationId,
+        order: data.order,
+        type: data.type,
+        location: data.location,
+        scheduledAt: data.scheduledAt,
+        interviewerName: data.interviewerName,
+        preparationNotes: data.preparationNotes,
+        reflectionNotes: data.reflectionNotes,
+        questionsAsked: data.questionsAsked,
+        whyItDidntGoWell: data.whyItDidntGoWell,
+        betterAnswerToday: data.betterAnswerToday,
+        outcome: data.outcome,
+        isCompleted: data.isCompleted ?? false,
       },
     });
-
     return NextResponse.json(stage, { status: 201 });
-  } catch {
-    return NextResponse.json(
-      { error: { code: 'INTERNAL_ERROR', message: 'Failed to create stage' } },
-      { status: 500 }
-    );
+  } catch (err) {
+    if ((err as any)?.name === "ZodError") return zodErrorResponse(err as any);
+    return errorResponse("INTERNAL_ERROR", "Failed to create stage", 500);
   }
 };
